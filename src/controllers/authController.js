@@ -32,9 +32,11 @@ const zaloLogin = async (req, res) => {
       },
     });
 
+    console.log('Zalo response:', JSON.stringify(zaloRes.data));
+
     const zaloId = zaloRes.data?.id;
     if (!zaloId) {
-      return res.status(401).json({ message: 'Token Zalo không hợp lệ' });
+      return res.status(401).json({ message: 'Token Zalo không hợp lệ', zaloResponse: zaloRes.data });
     }
 
     // Only allow 2 registered users
