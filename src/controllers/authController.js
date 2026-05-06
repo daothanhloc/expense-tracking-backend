@@ -35,7 +35,7 @@ const zaloLogin = async (req, res) => {
     ].filter(Boolean);
 
     if (allowedIds.length > 0 && !allowedIds.includes(zaloId)) {
-      return res.status(403).json({ message: 'Tài khoản không được phép truy cập' });
+      return res.status(403).json({ message: 'Tài khoản không được phép truy cập' + zaloId });
     }
 
     // Upsert user
