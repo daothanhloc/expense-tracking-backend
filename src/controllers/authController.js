@@ -1,3 +1,4 @@
+const crypto = require('crypto');
 const jwt = require('jsonwebtoken');
 const axios = require('axios');
 const User = require('../models/User');
@@ -17,10 +18,18 @@ const zaloLogin = async (req, res) => {
       return res.status(400).json({ message: 'Thiếu accessToken' });
     }
 
-    // Verify token with Zalo API
+    // Verify token with Zalo API (with appsecret_proof)
+    const appSecretProof = crypto
+      .createHmac('sha256', process.env.ZALO_APP_SECRET_KEY)
+      .update(accessToken)
+      .digest('hex');
+
     const zaloRes = await axios.get('https://graph.zalo.me/v2.0/me', {
-      params: { fields: 'id,name,picture' },
-      headers: { access_token: accessToken },
+      params: { fields: 'id,name,birthday,picture' },
+      headers: {
+        access_token: accessToken,
+        appsecret_proof: appSecretProof,
+      },
     });
 
     const zaloId = zaloRes.data?.id;
