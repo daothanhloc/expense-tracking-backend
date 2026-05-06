@@ -1,7 +1,12 @@
 const crypto = require('crypto');
 const jwt = require('jsonwebtoken');
 const axios = require('axios');
+const { HttpsProxyAgent } = require('https-proxy-agent');
 const User = require('../models/User');
+
+const zaloAxios = process.env.HTTP_PROXY
+  ? axios.create({ proxy: false, httpsAgent: new HttpsProxyAgent(process.env.HTTP_PROXY) })
+  : axios;
 
 /**
  * POST /api/auth/zalo
@@ -24,7 +29,7 @@ const zaloLogin = async (req, res) => {
       .update(accessToken)
       .digest('hex');
 
-    const zaloRes = await axios.get('https://graph.zalo.me/v2.0/me', {
+    const zaloRes = await zaloAxios.get('https://graph.zalo.me/v2.0/me', {
       params: { fields: 'id,name,birthday,picture' },
       headers: {
         access_token: accessToken,
@@ -32,11 +37,9 @@ const zaloLogin = async (req, res) => {
       },
     });
 
-    console.log('Zalo response:', JSON.stringify(zaloRes.data));
-
     const zaloId = zaloRes.data?.id;
     if (!zaloId) {
-      return res.status(401).json({ message: 'Token Zalo không hợp lệ', zaloResponse: zaloRes.data });
+      return res.status(401).json({ message: 'Token Zalo không hợp lệ' });
     }
 
     // Only allow 2 registered users
