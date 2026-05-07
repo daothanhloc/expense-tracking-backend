@@ -1,4 +1,7 @@
 const Group = require('../models/Group');
+const Transaction = require('../models/Transaction');
+const Contribution = require('../models/Contribution');
+const Goal = require('../models/Goal');
 
 const createGroup = async (req, res) => {
   try {
@@ -104,10 +107,33 @@ const leaveGroup = async (req, res) => {
   }
 };
 
+const deleteGroup = async (req, res) => {
+  try {
+    const group = await Group.findById(req.params.id);
+    if (!group) {
+      return res.status(404).json({ message: 'Nhóm không tồn tại' });
+    }
+
+    if (!group.createdBy.equals(req.user._id)) {
+      return res.status(403).json({ message: 'Chỉ người tạo nhóm mới được xoá' });
+    }
+
+    await Transaction.deleteMany({ groupId: group._id });
+    await Contribution.deleteMany({ groupId: group._id });
+    await Goal.deleteMany({ groupId: group._id });
+    await group.deleteOne();
+
+    res.json({ message: 'Nhóm đã được xoá thành công' });
+  } catch (error) {
+    res.status(500).json({ message: 'Lỗi xoá nhóm', error: error.message });
+  }
+};
+
 module.exports = {
   createGroup,
   joinGroup,
   getMyGroups,
   getGroupDetail,
   leaveGroup,
+  deleteGroup,
 };

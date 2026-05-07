@@ -10,6 +10,7 @@ const {
   getMyGroups,
   getGroupDetail,
   leaveGroup,
+  deleteGroup,
 } = require('../controllers/groupController');
 const {
   parseInput,
@@ -315,6 +316,31 @@ router.get('/groups/:id', authenticate, getGroupDetail);
  *         description: Không tìm thấy nhóm
  */
 router.post('/groups/:id/leave', authenticate, leaveGroup);
+
+/**
+ * @openapi
+ * /groups/{id}:
+ *   delete:
+ *     tags: [Groups]
+ *     summary: Xoá nhóm
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: string
+ *         description: Group ID
+ *     responses:
+ *       200:
+ *         description: Nhóm đã được xoá
+ *       403:
+ *         description: Chỉ người tạo nhóm mới được xoá
+ *       404:
+ *         description: Không tìm thấy nhóm
+ */
+router.delete('/groups/:id', authenticate, deleteGroup);
 
 // ─── Transactions (require groupId) ──────────────────────────────────────────
 
