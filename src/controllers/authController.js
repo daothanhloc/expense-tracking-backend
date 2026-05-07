@@ -2,6 +2,7 @@ const crypto = require('crypto');
 const jwt = require('jsonwebtoken');
 const axios = require('axios');
 const User = require('../models/User');
+const { deleteUserData } = require('./webhookController');
 
 const signToken = (user) =>
   jwt.sign(
@@ -188,4 +189,18 @@ const updateNotification = async (req, res) => {
   res.json({ notificationEnabled: req.user.notificationEnabled });
 };
 
-module.exports = { zaloLogin, register, login, getMe, updateNotification };
+/**
+ * DELETE /api/auth/me
+ * User-initiated account deletion.
+ */
+const deleteAccount = async (req, res) => {
+  try {
+    await deleteUserData(req.user._id.toString());
+    res.json({ message: 'Tài khoản đã được xoá thành công' });
+  } catch (error) {
+    console.error('Delete account error:', error.message);
+    res.status(500).json({ message: 'Lỗi xoá tài khoản', error: error.message });
+  }
+};
+
+module.exports = { zaloLogin, register, login, getMe, updateNotification, deleteAccount };
