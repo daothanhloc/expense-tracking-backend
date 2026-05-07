@@ -1,12 +1,22 @@
 const crypto = require('crypto');
 const jwt = require('jsonwebtoken');
 const axios = require('axios');
-const { HttpsProxyAgent } = require('https-proxy-agent');
 const User = require('../models/User');
 
-const zaloAxios = process.env.HTTP_PROXY
-  ? axios.create({ proxy: false, httpsAgent: new HttpsProxyAgent(process.env.HTTP_PROXY) })
-  : axios;
+const signToken = (user) =>
+  jwt.sign(
+    { userId: user._id },
+    process.env.JWT_SECRET,
+    { expiresIn: process.env.JWT_EXPIRES_IN || '30d' }
+  );
+
+const formatUser = (user) => ({
+  _id: user._id,
+  name: user.name,
+  avatarUrl: user.avatarUrl,
+  notificationEnabled: user.notificationEnabled,
+  phone: user.phone || undefined,
+});
 
 /**
  * POST /api/auth/zalo
@@ -29,7 +39,7 @@ const zaloLogin = async (req, res) => {
       .update(accessToken)
       .digest('hex');
 
-    const zaloRes = await zaloAxios.get('https://graph.zalo.me/v2.0/me', {
+    const zaloRes = await axios.get('https://graph.zalo.me/v2.0/me', {
       params: { fields: 'id,name,birthday,picture' },
       headers: {
         access_token: accessToken,
@@ -63,23 +73,92 @@ const zaloLogin = async (req, res) => {
       { upsert: true, new: true, setDefaultsOnInsert: true }
     );
 
-    const token = jwt.sign(
-      { userId: user._id, zaloId: user.zaloId },
-      process.env.JWT_SECRET,
-      { expiresIn: process.env.JWT_EXPIRES_IN || '30d' }
-    );
+    const token = signToken(user);
 
-    res.json({
-      token,
-      user: {
-        _id: user._id,
-        name: user.name,
-        avatarUrl: user.avatarUrl,
-        notificationEnabled: user.notificationEnabled,
-      },
-    });
+    res.json({ token, user: formatUser(user) });
   } catch (error) {
     console.error('Zalo login error:', error.message);
+    res.status(500).json({ message: 'Lỗi đăng nhập', error: error.message });
+  }
+};
+
+/**
+ * POST /api/auth/register
+ * Body: { phone, password, name }
+ */
+const register = async (req, res) => {
+  try {
+    const { phone, password, name } = req.body;
+
+    if (!phone || !password || !name) {
+      return res.status(400).json({ message: 'Thiếu phone, password hoặc name' });
+    }
+
+    if (password.length < 6) {
+      return res.status(400).json({ message: 'Mật khẩu phải có ít nhất 6 ký tự' });
+    }
+
+    const allowedPhones = [
+      process.env.USER_LOC_PHONE,
+      process.env.USER_DUONG_PHONE,
+    ].filter(Boolean);
+
+    if (allowedPhones.length === 0) {
+      return res.status(403).json({ message: 'Chưa cấu hình số điện thoại được phép' });
+    }
+
+    if (!allowedPhones.includes(phone)) {
+      return res.status(403).json({ message: 'Số điện thoại không được phép đăng ký' });
+    }
+
+    const existing = await User.findOne({ phone });
+    if (existing) {
+      return res.status(400).json({ message: 'Số điện thoại đã đăng ký' });
+    }
+
+    const user = await User.create({
+      phone,
+      password,
+      name,
+      authProvider: 'phone',
+    });
+
+    const token = signToken(user);
+
+    res.status(201).json({ token, user: formatUser(user) });
+  } catch (error) {
+    console.error('Register error:', error.message);
+    res.status(500).json({ message: 'Lỗi đăng ký', error: error.message });
+  }
+};
+
+/**
+ * POST /api/auth/login
+ * Body: { phone, password }
+ */
+const login = async (req, res) => {
+  try {
+    const { phone, password } = req.body;
+
+    if (!phone || !password) {
+      return res.status(400).json({ message: 'Thiếu phone hoặc password' });
+    }
+
+    const user = await User.findOne({ phone, authProvider: 'phone' });
+    if (!user) {
+      return res.status(401).json({ message: 'Số điện thoại hoặc mật khẩu không đúng' });
+    }
+
+    const isMatch = await user.comparePassword(password);
+    if (!isMatch) {
+      return res.status(401).json({ message: 'Số điện thoại hoặc mật khẩu không đúng' });
+    }
+
+    const token = signToken(user);
+
+    res.json({ token, user: formatUser(user) });
+  } catch (error) {
+    console.error('Login error:', error.message);
     res.status(500).json({ message: 'Lỗi đăng nhập', error: error.message });
   }
 };
@@ -109,4 +188,4 @@ const updateNotification = async (req, res) => {
   res.json({ notificationEnabled: req.user.notificationEnabled });
 };
 
-module.exports = { zaloLogin, getMe, updateNotification };
+module.exports = { zaloLogin, register, login, getMe, updateNotification };

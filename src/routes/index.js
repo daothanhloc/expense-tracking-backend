@@ -3,7 +3,7 @@ const router = express.Router();
 
 const { authenticate } = require('../middlewares/auth');
 const { groupAccess } = require('../middlewares/groupAccess');
-const { zaloLogin, getMe, updateNotification } = require('../controllers/authController');
+const { zaloLogin, register, login, getMe, updateNotification } = require('../controllers/authController');
 const {
   createGroup,
   joinGroup,
@@ -71,7 +71,9 @@ const {
  *       500:
  *         description: Lỗi server
  */
-router.post('/auth/zalo', zaloLogin);
+// router.post('/auth/zalo', zaloLogin); // disabled: Zalo blocks non-Vietnam IPs
+router.post('/auth/register', register);
+router.post('/auth/login', login);
 
 /**
  * @openapi
