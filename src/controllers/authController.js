@@ -102,6 +102,7 @@ const register = async (req, res) => {
     const allowedPhones = [
       process.env.USER_LOC_PHONE,
       process.env.USER_DUONG_PHONE,
+      process.env.USER_TESTER_PHONE,
     ].filter(Boolean);
 
     if (allowedPhones.length === 0) {
