@@ -5,8 +5,6 @@ const userSchema = new mongoose.Schema(
   {
     zaloId: {
       type: String,
-      unique: true,
-      sparse: true,
       trim: true,
     },
     phone: {
@@ -51,5 +49,10 @@ userSchema.pre('save', async function (next) {
 userSchema.methods.comparePassword = function (candidate) {
   return bcrypt.compare(candidate, this.password);
 };
+
+userSchema.index(
+  { zaloId: 1 },
+  { unique: true, partialFilterExpression: { zaloId: { $exists: true, $ne: null } } }
+);
 
 module.exports = mongoose.model('User', userSchema);
