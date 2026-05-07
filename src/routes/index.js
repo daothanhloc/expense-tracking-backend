@@ -3,7 +3,7 @@ const router = express.Router();
 
 const { authenticate } = require('../middlewares/auth');
 const { groupAccess } = require('../middlewares/groupAccess');
-const { zaloLogin, register, login, getMe, updateNotification } = require('../controllers/authController');
+const { zaloLogin, register, login, getMe, updateNotification, deleteAccount } = require('../controllers/authController');
 const {
   createGroup,
   joinGroup,
@@ -25,6 +25,15 @@ const {
   contribute,
   getContributions,
 } = require('../controllers/fundController');
+const {
+  zaloWebhookVerify,
+  zaloWebhookHandler,
+} = require('../controllers/webhookController');
+
+// ─── Webhooks (no auth) ──────────────────────────────────────────────────────
+
+router.get('/webhooks/zalo', zaloWebhookVerify);
+router.post('/webhooks/zalo', zaloWebhookHandler);
 
 // ─── Auth ─────────────────────────────────────────────────────────────────────
 
@@ -130,6 +139,22 @@ router.get('/auth/me', authenticate, getMe);
  *         description: Token không hợp lệ
  */
 router.patch('/auth/notification', authenticate, updateNotification);
+
+/**
+ * @openapi
+ * /auth/me:
+ *   delete:
+ *     tags: [Auth]
+ *     summary: Xoá tài khoản
+ *     security:
+ *       - bearerAuth: []
+ *     responses:
+ *       200:
+ *         description: Tài khoản đã được xoá
+ *       401:
+ *         description: Token không hợp lệ
+ */
+router.delete('/auth/me', authenticate, deleteAccount);
 
 // ─── Groups ───────────────────────────────────────────────────────────────────
 
