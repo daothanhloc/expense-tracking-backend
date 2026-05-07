@@ -10,8 +10,9 @@ The app currently has no webhook handling and no user/data deletion logic.
 
 - Handle Zalo webhook URL verification (GET handshake)
 - Handle `user.remove.info` event (POST)
+- User-initiated account deletion via API (DELETE from frontend)
 - Delete all data associated with the user
-- Phone-only users (no `zaloId`) are handled gracefully (return success, nothing to delete)
+- Phone-only users (no `zaloId`) are handled gracefully via webhook (return success, nothing to delete)
 
 ## Architecture
 
@@ -63,18 +64,34 @@ Goals have embedded `contributions` sub-documents with `userId`. When deleting a
 - If a goal's `currentAmount` is affected, recalculate from remaining contributions
 - Do not delete the goal itself — the other user may still use it
 
-### Error Handling
+### User-Initiated Account Deletion (DELETE)
 
-- Invalid `oa_id` → 403 Forbidden
-- Missing required fields → 400 Bad Request
-- Unexpected errors → log error, still return `{ errorCode: 0 }` to Zalo (they don't retry on failure, so we acknowledge receipt and handle internally)
+Endpoint: `DELETE /api/auth/me`
+
+Requires JWT authentication. Allows a user to delete their own account and all associated data from the frontend.
+
+Flow:
+1. Authenticate user via JWT middleware
+2. Reuse the same cascading deletion logic as the webhook:
+   - Delete all Transactions where `createdBy = userId`
+   - Delete all Contributions where `userId = userId`
+   - Remove `userId` from Group `members` arrays
+   - Delete any Groups that now have zero members
+   - Remove user's contribution entries from all Goals (recalculate `currentAmount`)
+   - Delete Goals only in groups that were deleted
+   - Delete the User document
+3. Log the deletion
+4. Return `{ message: "Tài khoản đã được xoá thành công" }` with 200 status
+
+The deletion logic is shared between the webhook and this endpoint — extracted into a reusable function.
 
 ## Files Changed
 
 | File | Action | Description |
 |------|--------|-------------|
-| `src/controllers/webhookController.js` | New | Handles GET handshake + POST data deletion |
-| `src/routes/index.js` | Modified | Add GET+POST `/webhooks/zalo` routes (no auth middleware) |
+| `src/controllers/webhookController.js` | New | Handles GET handshake + POST data deletion + shared `deleteUserData` function |
+| `src/controllers/authController.js` | Modified | Add `deleteAccount` handler using shared deletion logic |
+| `src/routes/index.js` | Modified | Add GET+POST `/webhooks/zalo` routes (no auth) + `DELETE /auth/me` route (with auth) |
 
 ## Data Models Affected
 
